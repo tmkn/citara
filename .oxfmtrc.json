@@ -1,0 +1,9 @@
+{
+    "$schema": "./node_modules/oxfmt/configuration_schema.json",
+    "tabWidth": 4,
+    "sortImports": {
+        "groups": ["builtin", "external", "internal", ["parent", "sibling", "index"]],
+        "internalPattern": ["@repo/"],
+        "newlinesBetween": true
+    }
+}
