@@ -1,0 +1,23 @@
+{
+    "editor.bracketPairColorization.enabled": true,
+    "js/ts.tsdk.path": "node_modules/typescript/lib",
+    "js/ts.referencesCodeLens.showOnAllFunctions": true,
+    "js/ts.referencesCodeLens.enabled": true,
+    "js/ts.implementationsCodeLens.enabled": true,
+    "editor.formatOnSave": true,
+    "[typescript]": {
+        "editor.defaultFormatter": "oxc.oxc-vscode"
+    },
+    "[javascript]": {
+        "editor.defaultFormatter": "oxc.oxc-vscode"
+    },
+    "[json]": {
+        "editor.defaultFormatter": "oxc.oxc-vscode"
+    },
+    "[jsonc]": {
+        "editor.defaultFormatter": "oxc.oxc-vscode"
+    },
+    "[yaml]": {
+        "editor.defaultFormatter": "oxc.oxc-vscode"
+    }
+}

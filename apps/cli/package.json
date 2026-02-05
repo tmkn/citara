@@ -1,0 +1,23 @@
+{
+    "name": "@repo/cli",
+    "private": true,
+    "type": "module",
+    "exports": {
+        "./*": {
+            "types": "./src/*.ts",
+            "default": "./build/*.js"
+        }
+    },
+    "scripts": {
+        "dev": "tsc -b --watch",
+        "build": "tsc -b",
+        "debug": "tsc --showConfig"
+    },
+    "dependencies": {
+        "@repo/node": "*",
+        "@repo/shared": "*",
+        "@types/node": "^25.2.1",
+        "commander": "^14.0.3",
+        "ora": "^9.3.0"
+    }
+}
