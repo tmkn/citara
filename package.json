@@ -1,0 +1,42 @@
+{
+    "name": "citara",
+    "version": "1.0.0",
+    "private": true,
+    "description": "",
+    "homepage": "https://github.com/tmkn/citara#readme",
+    "bugs": {
+        "url": "https://github.com/tmkn/citara/issues"
+    },
+    "license": "ISC",
+    "author": "tmkn",
+    "repository": {
+        "type": "git",
+        "url": "git+https://github.com/tmkn/citara.git"
+    },
+    "workspaces": [
+        "apps/*",
+        "packages/*"
+    ],
+    "type": "module",
+    "main": "index.js",
+    "scripts": {
+        "fmt": "oxfmt",
+        "fmt:check": "oxfmt --check",
+        "test": "turbo run test",
+        "test:watch": "turbo run test:watch",
+        "build": "turbo run build",
+        "dev": "turbo run dev"
+    },
+    "dependencies": {
+        "@tanstack/query-core": "^5.90.20",
+        "semver": "^7.7.4"
+    },
+    "devDependencies": {
+        "@types/semver": "^7.7.1",
+        "oxfmt": "^0.28.0",
+        "turbo": "^2.8.3",
+        "typescript": "^5.9.3",
+        "vitest": "^4.0.18"
+    },
+    "packageManager": "npm@8.5.0"
+}
