@@ -14,9 +14,9 @@ export const noPostinstallRule = defineRule<PostinstallParams, PostinstallData>(
     id: "no-postinstall-script",
 
     annotate(node) {
-        const script = node.manifest.get<string>("scripts.postinstall");
+        const script = node.manifest.getSafe("scripts.postinstall");
 
-        if (!script) {
+        if (!script || typeof script !== "string") {
             return { exists: false, scriptLength: 0 };
         }
 

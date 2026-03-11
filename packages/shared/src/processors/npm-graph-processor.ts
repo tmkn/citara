@@ -1,6 +1,5 @@
-import z from "zod";
-
 import type { NpmRegistryClient } from "../common/npm-registry-client.js";
+import { DependenciesSchema, type Dependencies } from "../common/npm-schema.js";
 import type { ExecutionContext } from "../context/execution-context.js";
 import { DependencyGraph } from "../graph/dependency-graph.js";
 import type { PackageId } from "../graph/package-id.js";
@@ -52,7 +51,14 @@ export class NpmGraphProcessor implements Processor {
 
         ctx.logger.info(`Resolving dependencies for ${node.name}@${node.version}`);
 
-        const deps = this.getDependencies(node.manifest, dependencyType);
+        let deps: Dependencies = {};
+        try {
+            deps = this.getDependencies(node.manifest, dependencyType);
+        } catch {
+            throw new Error(
+                `Invalid dependencies in manifest of ${node.name}@${node.version} under '${dependencyType}'`,
+            );
+        }
 
         for (const [depName, rawRange] of Object.entries(deps)) {
             const alias = this.parseAlias(rawRange);
@@ -121,20 +127,10 @@ export class NpmGraphProcessor implements Processor {
         }
     }
 
-    private _depsSchema = z.record(z.string(), z.string());
-    private getDependencies(
-        manifest: PackageManifest,
-        dependencyType: string,
-    ): Record<string, string> {
-        const rawDeps = manifest.get(dependencyType);
+    private getDependencies(manifest: PackageManifest, dependencyType: string): Dependencies {
+        const rawDeps = manifest.getSafe(dependencyType) ?? {};
 
-        const result = this._depsSchema.safeParse(rawDeps);
-
-        if (result.success) {
-            return result.data;
-        }
-
-        return {};
+        return DependenciesSchema.parse(rawDeps);
     }
 
     private parseAlias(range: string): { name: string; range: string } | null {
