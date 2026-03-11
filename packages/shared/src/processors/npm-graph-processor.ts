@@ -9,12 +9,6 @@ import type { PackageNode } from "../graph/package-node.js";
 import type { AnalysisSession } from "../session/analysis-session.js";
 import { type Processor } from "./processor.js";
 
-export type NpmManifest = {
-    name: string;
-    version: string;
-    dependencies?: Record<string, string>;
-};
-
 export class NpmGraphProcessor implements Processor {
     readonly name = "npm-graph";
     readonly dependsOn = [];
