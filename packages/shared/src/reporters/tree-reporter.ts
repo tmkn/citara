@@ -1,4 +1,4 @@
-import type { PackageNode } from "../graph/package-node.js";
+import { formatPackageNode, type PackageNode } from "../graph/package-node.js";
 import type { AnalysisSession } from "../session/analysis-session.js";
 import { type Reporter } from "./reporter.js";
 
@@ -43,11 +43,7 @@ export class TreeReporter implements Reporter {
         return base;
     }
 
-    private formatNode(node: { name: string; version: string; source: string }): string {
-        if (node.source === "external") {
-            return `${node.name}@${node.version} [external]`;
-        }
-
-        return `${node.name}@${node.version}`;
+    private formatNode(node: PackageNode): string {
+        return formatPackageNode(node);
     }
 }

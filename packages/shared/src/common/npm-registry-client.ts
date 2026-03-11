@@ -2,7 +2,14 @@ import { QueryClient } from "@tanstack/query-core";
 import * as semver from "semver";
 
 import type { ExecutionContext } from "../context/execution-context.js";
-import type { NpmManifest, NpmPackageMetadata } from "../processors/npm-graph-processor.js";
+import type { NpmManifest } from "../processors/npm-graph-processor.js";
+
+// TODO: use zod for validation?
+export type NpmPackageMetadata = {
+    name: string;
+    versions: Record<string, NpmManifest>;
+    "dist-tags"?: Record<string, string>;
+};
 
 export interface NpmRegistryClient {
     fetchManifest(name: string, range: string, ctx: ExecutionContext): Promise<NpmManifest>;

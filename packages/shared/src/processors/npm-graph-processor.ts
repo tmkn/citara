@@ -15,12 +15,6 @@ export type NpmManifest = {
     dependencies?: Record<string, string>;
 };
 
-export type NpmPackageMetadata = {
-    name: string;
-    versions: Record<string, NpmManifest>;
-    "dist-tags"?: Record<string, string>;
-};
-
 export class NpmGraphProcessor implements Processor {
     readonly name = "npm-graph";
     readonly dependsOn = [];
@@ -37,7 +31,7 @@ export class NpmGraphProcessor implements Processor {
         session.meta.resolvedVersion = rootManifest.version;
 
         const rootNode: PackageNode = {
-            id: this.pkgId(rootManifest),
+            id: this.pkgId(rootManifest.name, rootManifest.version),
             name: rootManifest.name,
             version: rootManifest.version,
             manifest: new PackageManifest(rootManifest),
@@ -66,19 +60,24 @@ export class NpmGraphProcessor implements Processor {
 
         const deps = this.getDependencies(node.manifest, dependencyType);
 
-        for (const [name, range] of Object.entries(deps)) {
-            // Handle non-registry dependencies (git, file, url, workspace, etc.)
-            if (!this.isRegistryRange(range)) {
-                const id: PackageId = `${name}@${range}`;
+        for (const [depName, rawRange] of Object.entries(deps)) {
+            const alias = this.parseAlias(rawRange);
+
+            const lookupName = alias ? alias.name : depName;
+            const lookupRange = alias ? alias.range : rawRange;
+
+            // Handle non-registry dependencies
+            if (!this.isRegistryRange(lookupRange)) {
+                const id: PackageId = `${depName}@${lookupRange}`;
 
                 if (!graph.hasNode(id)) {
                     const externalNode: PackageNode = {
                         id,
-                        name,
-                        version: range, // opaque version
+                        name: depName,
+                        version: lookupRange,
                         manifest: new PackageManifest({
-                            name,
-                            version: range,
+                            name: depName,
+                            version: lookupRange,
                             dependencies: {},
                         }),
                         source: "external",
@@ -91,17 +90,24 @@ export class NpmGraphProcessor implements Processor {
                 continue;
             }
 
-            // Normal registry resolution
-            const manifest = await this._registryClient.fetchManifest(name, range, ctx);
-            const id = this.pkgId(manifest);
+            const manifest = await this._registryClient.fetchManifest(lookupName, lookupRange, ctx);
+
+            const id = this.pkgId(depName, manifest.version);
 
             if (!graph.hasNode(id)) {
                 const child: PackageNode = {
                     id,
-                    name: manifest.name,
+                    name: depName,
                     version: manifest.version,
                     manifest: new PackageManifest(manifest),
                     source: "registry",
+
+                    ...(alias && {
+                        alias: {
+                            name: alias.name,
+                            range: alias.range,
+                        },
+                    }),
                 };
 
                 graph.addNode(child);
@@ -137,6 +143,37 @@ export class NpmGraphProcessor implements Processor {
         return {};
     }
 
+    private parseAlias(range: string): { name: string; range: string } | null {
+        if (!range.startsWith("npm:")) {
+            return null;
+        }
+
+        const spec = range.slice(4);
+        const idx = spec.lastIndexOf("@");
+
+        // If there's no '@' (idx === -1) OR it's just the scope '@' (idx === 0)
+        // Then the user didn't provide a version. Default to "latest".
+        if (idx <= 0) {
+            return {
+                name: spec,
+                range: "latest", // Fallback version for the registry lookup
+            };
+        }
+
+        const name = spec.slice(0, idx);
+        const versionRange = spec.slice(idx + 1);
+
+        // Sanity check just in case it's literally "npm:@" or something broken
+        if (!name || !versionRange) {
+            return null;
+        }
+
+        return {
+            name,
+            range: versionRange,
+        };
+    }
+
     private isRegistryRange(range: string): boolean {
         // git
         if (range.startsWith("git://")) return false;
@@ -157,7 +194,7 @@ export class NpmGraphProcessor implements Processor {
         return true;
     }
 
-    private pkgId(manifest: NpmManifest): PackageId {
-        return `${manifest.name}@${manifest.version}`;
+    private pkgId(name: string, version: string): PackageId {
+        return `${name}@${version}`;
     }
 }
