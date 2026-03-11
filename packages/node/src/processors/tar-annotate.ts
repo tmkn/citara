@@ -4,6 +4,7 @@ import type { ReadableStream } from "node:stream/web";
 import { createGunzip } from "node:zlib";
 
 import tar from "tar-stream";
+import z from "zod";
 
 import type { NpmRegistryClient } from "@repo/shared/common/npm-registry-client";
 import type { ExecutionContext } from "@repo/shared/context/execution-context";
@@ -20,6 +21,12 @@ export type ExtractedFile =
     | { type: "file"; size: number; content: Buffer }
     | { type: "too_large"; size: number };
 
+const ManifestDistSchema = z.object({
+    dist: z.object({
+        tarball: z.string(),
+    }),
+});
+
 export class TarAnnotateProcessor implements Processor {
     readonly name = "tar-annotate";
     readonly dependsOn = ["npm-graph"];
@@ -34,14 +41,28 @@ export class TarAnnotateProcessor implements Processor {
         const graph = session.graph;
 
         for (const node of graph.getNodes()) {
-            const manifest = await this.registryClient.fetchManifest(node.name, node.version, ctx);
+            const fetchName = node.alias?.name ?? node.name;
+            const resolvedVersion = node.version;
 
-            const tarballUrl = (manifest as any).dist?.tarball;
+            let manifest;
+            try {
+                manifest = await this.registryClient.fetchManifest(fetchName, resolvedVersion, ctx);
+            } catch (err) {
+                throw new Error(
+                    `Could not resolve ${fetchName}@${resolvedVersion} for node ${node.id}`,
+                    { cause: err },
+                );
+            }
 
-            if (!tarballUrl) {
+            const parsed = ManifestDistSchema.safeParse(manifest);
+
+            if (!parsed.success) {
+                ctx.logger.warn(`manifest missing dist.tarball ${node.id}`);
                 session.setAnnotation(node.id, TARBALL_FILES.key, null);
                 continue;
             }
+
+            const tarballUrl = parsed.data.dist.tarball;
 
             ctx.logger.info(`Downloading tarball: ${node.id}`);
 
@@ -77,11 +98,7 @@ export class TarAnnotateProcessor implements Processor {
                 const size = header.size ?? 0;
 
                 if (size > this.MAX_FILE_SIZE) {
-                    files.set(name, {
-                        type: "too_large",
-                        size,
-                    });
-
+                    files.set(name, { type: "too_large", size });
                     stream.resume();
                     return next();
                 }
@@ -92,22 +109,13 @@ export class TarAnnotateProcessor implements Processor {
                 }
 
                 const chunks: Buffer[] = [];
-
-                stream.on("data", (chunk) => {
-                    chunks.push(chunk);
-                });
+                stream.on("data", (chunk) => chunks.push(chunk));
 
                 stream.on("end", () => {
                     const content = Buffer.concat(chunks);
-
                     totalSize += content.length;
 
-                    files.set(name, {
-                        type: "file",
-                        size: content.length,
-                        content,
-                    });
-
+                    files.set(name, { type: "file", size: content.length, content });
                     next();
                 });
 
