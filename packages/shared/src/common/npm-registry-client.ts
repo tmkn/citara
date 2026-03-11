@@ -2,14 +2,12 @@ import { QueryClient } from "@tanstack/query-core";
 import * as semver from "semver";
 
 import type { ExecutionContext } from "../context/execution-context.js";
-import type { NpmManifest } from "../processors/npm-graph-processor.js";
-
-// TODO: use zod for validation?
-export type NpmPackageMetadata = {
-    name: string;
-    versions: Record<string, NpmManifest>;
-    "dist-tags"?: Record<string, string>;
-};
+import {
+    NpmManifestSchema,
+    NpmPackageMetadataSchema,
+    type NpmManifest,
+    type NpmPackageMetadata,
+} from "./npm-schema.js";
 
 export interface NpmRegistryClient {
     fetchManifest(name: string, range: string, ctx: ExecutionContext): Promise<NpmManifest>;
@@ -37,7 +35,9 @@ export class CachedNpmRegistryClient implements NpmRegistryClient {
             throw new Error(`Resolved version ${resolvedVersion} not found for ${name}`);
         }
 
-        return manifest;
+        return NpmManifestSchema.parse(manifest, {
+            error: () => `Invalid manifest for ${name}@${resolvedVersion}`,
+        });
     }
 
     private async fetchMetadata(name: string, ctx: ExecutionContext): Promise<NpmPackageMetadata> {
@@ -53,7 +53,24 @@ export class CachedNpmRegistryClient implements NpmRegistryClient {
                     throw new Error(`Failed to fetch package metadata for ${name}: ${res.status}`);
                 }
 
-                return JSON.parse(res.body as string) as NpmPackageMetadata;
+                if (typeof res.body !== "string") {
+                    throw new Error(
+                        `Unexpected response body type for ${name}: ${typeof res.body}`,
+                    );
+                }
+
+                let json: unknown;
+                try {
+                    json = JSON.parse(res.body);
+                } catch (e) {
+                    throw new Error(`Failed to parse JSON response for ${name} metadata`, {
+                        cause: e,
+                    });
+                }
+
+                return NpmPackageMetadataSchema.parse(json, {
+                    error: () => `Invalid package metadata for ${name}`,
+                });
             },
         });
     }
