@@ -1,32 +1,58 @@
 import type { ZodType } from "zod";
 
+type LookupResult = { exists: true; value: unknown } | { exists: false };
+
 export class PackageManifest {
     constructor(private readonly raw: unknown) {}
 
-    get<T = unknown>(path: string, defaultValue?: T): T {
-        if (typeof this.raw !== "object" || this.raw === null) {
-            return defaultValue as T;
+    get(path: string): unknown;
+    get<T>(path: string, schema: ZodType<T>): T;
+    get<T = unknown>(path: string, schema?: ZodType<T>): T {
+        const result = this.lookup(path);
+
+        if (!result.exists) {
+            throw new Error(`Path '${path}' does not exist in the manifest.`);
         }
 
+        const value = result.value;
+
+        if (!schema) {
+            return value as T;
+        }
+
+        return schema.parse(value, {
+            error: () => new Error(`Invalid value at path '${path}'`),
+        });
+    }
+
+    getSafe(path: string): unknown {
+        const result = this.lookup(path);
+        return result.exists ? result.value : undefined;
+    }
+
+    has(path: string): boolean {
+        return this.lookup(path).exists;
+    }
+
+    private lookup(path: string): LookupResult {
         const keys = path.split(".");
-        let current: any = this.raw;
+        let current: unknown = this.raw;
 
         for (const key of keys) {
-            if (current === undefined || current === null || typeof current !== "object") {
-                return defaultValue as T;
+            if (typeof current !== "object" || current === null) {
+                return { exists: false };
             }
-            current = current[key];
+
+            const obj = current as Record<string, unknown>;
+
+            if (!(key in obj)) {
+                return { exists: false };
+            }
+
+            current = obj[key];
         }
 
-        return (current !== undefined ? current : defaultValue) as T;
-    }
-
-    parse<T>(schema: ZodType<T>): T {
-        return schema.parse(this.raw);
-    }
-
-    safeParse<T>(schema: ZodType<T>) {
-        return schema.safeParse(this.raw);
+        return { exists: true, value: current };
     }
 
     get rawData(): unknown {

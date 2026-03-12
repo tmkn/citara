@@ -8,8 +8,7 @@ describe("PackageManifest", () => {
         name: "test-package",
         version: "1.0.0",
         scripts: {
-            build: "tsc",
-            test: "vitest",
+            build: "task for build",
         },
         nested: {
             deep: {
@@ -21,7 +20,7 @@ describe("PackageManifest", () => {
     describe("get()", () => {
         it.each([
             ["top-level value", "name", "test-package"],
-            ["nested value", "scripts.build", "tsc"],
+            ["nested value", "scripts.build", "task for build"],
             ["deeply nested value", "nested.deep.value", 42],
         ])("returns %s", (_, path, expected) => {
             const manifest = new PackageManifest(manifestData);
@@ -29,83 +28,66 @@ describe("PackageManifest", () => {
             expect(manifest.get(path)).toBe(expected);
         });
 
-        it("returns default value if path does not exist", () => {
+        it("throws if path does not exist", () => {
             const manifest = new PackageManifest(manifestData);
 
-            expect(manifest.get("scripts.lint", "eslint")).toBe("eslint");
+            expect(() => manifest.get("scripts.lint")).toThrow(
+                "Path 'scripts.lint' does not exist in the manifest.",
+            );
         });
 
-        it("returns default value if intermediate path is not an object", () => {
+        it("throws if intermediate path does not exist", () => {
             const manifest = new PackageManifest(manifestData);
 
-            expect(manifest.get("name.something", "fallback")).toBe("fallback");
+            expect(() => manifest.get("name.something")).toThrow(
+                "Path 'name.something' does not exist in the manifest.",
+            );
         });
+    });
 
-        it("returns undefined if value does not exist and no default is provided", () => {
+    describe("get(path, schema)", () => {
+        it("returns parsed value when schema is valid", () => {
             const manifest = new PackageManifest(manifestData);
 
-            expect(manifest.get("does.not.exist")).toBeUndefined();
+            const result = manifest.get("nested.deep.value", z.number());
+
+            expect(result).toBe(42);
         });
 
-        it("returns default when raw is not an object", () => {
+        it("throws when schema validation fails", () => {
+            const manifest = new PackageManifest(manifestData);
+
+            expect(() => manifest.get("name", z.number())).toThrow("Invalid value at path 'name'");
+        });
+    });
+
+    describe("getSafe()", () => {
+        it.each([
+            ["top-level value", "name", "test-package"],
+            ["nested value", "scripts.build", "task for build"],
+            ["deeply nested value", "nested.deep.value", 42],
+        ])("returns %s", (_, path, expected) => {
+            const manifest = new PackageManifest(manifestData);
+
+            expect(manifest.getSafe(path)).toBe(expected);
+        });
+
+        it("returns undefined if path does not exist", () => {
+            const manifest = new PackageManifest(manifestData);
+
+            expect(manifest.getSafe("scripts.lint")).toBeUndefined();
+        });
+
+        it("returns undefined if intermediate path does not exist", () => {
+            const manifest = new PackageManifest(manifestData);
+
+            expect(manifest.getSafe("name.something")).toBeUndefined();
+        });
+
+        it("returns undefined when raw data is not an object", () => {
             const manifest = new PackageManifest(null);
 
-            expect(manifest.get("anything", "default")).toBe("default");
-        });
-    });
-
-    describe("parse()", () => {
-        it("parses successfully with valid schema", () => {
-            const manifest = new PackageManifest(manifestData);
-
-            const schema = z.object({
-                name: z.string(),
-                version: z.string(),
-            });
-
-            const result = manifest.parse(schema);
-
-            expect(result.name).toBe("test-package");
-            expect(result.version).toBe("1.0.0");
-        });
-
-        it("throws when schema doesn't match", () => {
-            const manifest = new PackageManifest(manifestData);
-
-            const schema = z.object({
-                name: z.number(),
-            });
-
-            expect(() => manifest.parse(schema)).toThrow();
-        });
-    });
-
-    describe("safeParse()", () => {
-        it("parses successfully with valid schema", () => {
-            const manifest = new PackageManifest(manifestData);
-
-            const schema = z.object({
-                name: z.string(),
-            });
-
-            const result = manifest.safeParse(schema);
-
-            expect(result.success).toBe(true);
-            if (result.success) {
-                expect(result.data.name).toBe("test-package");
-            }
-        });
-
-        it("returns failure result for invalid schema", () => {
-            const manifest = new PackageManifest(manifestData);
-
-            const schema = z.object({
-                name: z.number(),
-            });
-
-            const result = manifest.safeParse(schema);
-
-            expect(result.success).toBe(false);
+            expect(manifest.getSafe("anything")).toBeUndefined();
         });
     });
 
@@ -115,5 +97,35 @@ describe("PackageManifest", () => {
 
             expect(manifest.rawData).toBe(manifestData);
         });
+    });
+
+    describe("has()", () => {
+        it("returns true for existing path", () => {
+            const manifest = new PackageManifest(manifestData);
+
+            expect(manifest.has("scripts.build")).toBe(true);
+        });
+
+        it("returns false for missing path", () => {
+            const manifest = new PackageManifest(manifestData);
+
+            expect(manifest.has("scripts.lint")).toBe(false);
+        });
+
+        it("returns false if intermediate path does not exist", () => {
+            const manifest = new PackageManifest(manifestData);
+
+            expect(manifest.has("name.something")).toBe(false);
+        });
+    });
+
+    it("returns undefined if value exists but is undefined", () => {
+        const manifest = new PackageManifest({
+            scripts: { build: undefined },
+        });
+
+        expect(manifest.has("scripts.build")).toBe(true);
+        expect(manifest.getSafe("scripts.build")).toBeUndefined();
+        expect(manifest.get("scripts.build")).toBeUndefined();
     });
 });
