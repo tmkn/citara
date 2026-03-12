@@ -1,9 +1,9 @@
-import { describe, it, expect } from "vitest";
+import { describe, test, expect } from "vitest";
 
 import { NpmPackageMetadataSchema, NpmManifestSchema } from "../src/common/npm-schema.js";
 
 describe("schemas don't strip data", () => {
-    it("NpmPackageMetadataSchema doesn't strip data", () => {
+    test("NpmPackageMetadataSchema doesn't strip data", () => {
         const input = {
             name: "cantina",
             versions: {
@@ -24,7 +24,7 @@ describe("schemas don't strip data", () => {
         expect(parsed.versions["18.2.0"].extraField).toBe(42);
     });
 
-    it("NpmManifestSchema doesn't strip data", () => {
+    test("NpmManifestSchema doesn't strip data", () => {
         const input = {
             name: "cantina",
             version: "18.2.0",
