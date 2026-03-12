@@ -11,7 +11,11 @@
     "scripts": {
         "dev": "tsc -b --watch",
         "build": "tsc -b",
-        "debug": "tsc --showConfig"
+        "debug": "tsc --showConfig",
+        "test": "vitest run",
+        "test:watch": "vitest",
+        "test:coverage": "vitest run --coverage",
+        "test:update": "vitest run --update"
     },
     "dependencies": {
         "@repo/node": "*",

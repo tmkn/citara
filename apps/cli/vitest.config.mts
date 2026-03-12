@@ -1,0 +1,14 @@
+import { defineConfig } from "vitest/config";
+
+export default defineConfig({
+    test: {
+        name: { label: "apps/cli", color: "black" },
+        environment: "node",
+        include: ["tests/**/*.test.ts"],
+        coverage: {
+            provider: "v8",
+            include: ["src/**/*.ts"],
+            exclude: ["/node_modules/", "build/"],
+        },
+    },
+});
