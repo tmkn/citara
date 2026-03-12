@@ -1,4 +1,4 @@
-import { describe, it, expect } from "vitest";
+import { describe, test, expect } from "vitest";
 import { z } from "zod";
 
 import { PackageManifest } from "@repo/shared/graph/package-manifest";
@@ -18,7 +18,7 @@ describe("PackageManifest", () => {
     };
 
     describe("get()", () => {
-        it.each([
+        test.each([
             ["top-level value", "name", "test-package"],
             ["nested value", "scripts.build", "task for build"],
             ["deeply nested value", "nested.deep.value", 42],
@@ -28,7 +28,7 @@ describe("PackageManifest", () => {
             expect(manifest.get(path)).toBe(expected);
         });
 
-        it("throws if path does not exist", () => {
+        test("throws if path does not exist", () => {
             const manifest = new PackageManifest(manifestData);
 
             expect(() => manifest.get("scripts.lint")).toThrow(
@@ -36,7 +36,7 @@ describe("PackageManifest", () => {
             );
         });
 
-        it("throws if intermediate path does not exist", () => {
+        test("throws if intermediate path does not exist", () => {
             const manifest = new PackageManifest(manifestData);
 
             expect(() => manifest.get("name.something")).toThrow(
@@ -46,7 +46,7 @@ describe("PackageManifest", () => {
     });
 
     describe("get(path, schema)", () => {
-        it("returns parsed value when schema is valid", () => {
+        test("returns parsed value when schema is valid", () => {
             const manifest = new PackageManifest(manifestData);
 
             const result = manifest.get("nested.deep.value", z.number());
@@ -54,7 +54,7 @@ describe("PackageManifest", () => {
             expect(result).toBe(42);
         });
 
-        it("throws when schema validation fails", () => {
+        test("throws when schema validation fails", () => {
             const manifest = new PackageManifest(manifestData);
 
             expect(() => manifest.get("name", z.number())).toThrow("Invalid value at path 'name'");
@@ -62,7 +62,7 @@ describe("PackageManifest", () => {
     });
 
     describe("getSafe()", () => {
-        it.each([
+        test.each([
             ["top-level value", "name", "test-package"],
             ["nested value", "scripts.build", "task for build"],
             ["deeply nested value", "nested.deep.value", 42],
@@ -72,19 +72,19 @@ describe("PackageManifest", () => {
             expect(manifest.getSafe(path)).toBe(expected);
         });
 
-        it("returns undefined if path does not exist", () => {
+        test("returns undefined if path does not exist", () => {
             const manifest = new PackageManifest(manifestData);
 
             expect(manifest.getSafe("scripts.lint")).toBeUndefined();
         });
 
-        it("returns undefined if intermediate path does not exist", () => {
+        test("returns undefined if intermediate path does not exist", () => {
             const manifest = new PackageManifest(manifestData);
 
             expect(manifest.getSafe("name.something")).toBeUndefined();
         });
 
-        it("returns undefined when raw data is not an object", () => {
+        test("returns undefined when raw data is not an object", () => {
             const manifest = new PackageManifest(null);
 
             expect(manifest.getSafe("anything")).toBeUndefined();
@@ -92,7 +92,7 @@ describe("PackageManifest", () => {
     });
 
     describe("rawData", () => {
-        it("returns the original raw data", () => {
+        test("returns the original raw data", () => {
             const manifest = new PackageManifest(manifestData);
 
             expect(manifest.rawData).toBe(manifestData);
@@ -100,26 +100,26 @@ describe("PackageManifest", () => {
     });
 
     describe("has()", () => {
-        it("returns true for existing path", () => {
+        test("returns true for existing path", () => {
             const manifest = new PackageManifest(manifestData);
 
             expect(manifest.has("scripts.build")).toBe(true);
         });
 
-        it("returns false for missing path", () => {
+        test("returns false for missing path", () => {
             const manifest = new PackageManifest(manifestData);
 
             expect(manifest.has("scripts.lint")).toBe(false);
         });
 
-        it("returns false if intermediate path does not exist", () => {
+        test("returns false if intermediate path does not exist", () => {
             const manifest = new PackageManifest(manifestData);
 
             expect(manifest.has("name.something")).toBe(false);
         });
     });
 
-    it("returns undefined if value exists but is undefined", () => {
+    test("returns undefined if value exists but is undefined", () => {
         const manifest = new PackageManifest({
             scripts: { build: undefined },
         });

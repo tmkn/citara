@@ -1,4 +1,4 @@
-import { describe, it, expect, vi } from "vitest";
+import { describe, test, expect, vi } from "vitest";
 
 import { sortProcessors } from "../src/engine/sort-processors.js";
 import type { Processor } from "../src/processors/processor.js";
@@ -12,7 +12,7 @@ function createMockProcessor(name: string, dependsOn: string[] = []): Processor 
 }
 
 describe("sortProcessors", () => {
-    it("sorts a simple linear dependency chain", () => {
+    test("sorts a simple linear dependency chain", () => {
         const step1 = createMockProcessor("step-1", []);
         const step2 = createMockProcessor("step-2", ["step-1"]);
         const step3 = createMockProcessor("step-3", ["step-2"]);
@@ -24,7 +24,7 @@ describe("sortProcessors", () => {
         expect(sorted.map((p) => p.name)).toEqual(["step-1", "step-2", "step-3"]);
     });
 
-    it("sorts a diamond dependency graph correctly", () => {
+    test("sorts a diamond dependency graph correctly", () => {
         const root = createMockProcessor("root", []);
         const left = createMockProcessor("left", ["root"]);
         const right = createMockProcessor("right", ["root"]);
@@ -43,7 +43,7 @@ describe("sortProcessors", () => {
         expect(sortedNames.slice(1, 3)).toEqual(expect.arrayContaining(["left", "right"]));
     });
 
-    it("handles processors with no dependencies (preserves relative order)", () => {
+    test("handles processors with no dependencies (preserves relative order)", () => {
         const a = createMockProcessor("A", []);
         const b = createMockProcessor("B", []);
         const c = createMockProcessor("C", []);
@@ -56,7 +56,7 @@ describe("sortProcessors", () => {
         expect(sorted.map((p) => p.name)).toEqual(["B", "C", "A"]);
     });
 
-    it("throws a descriptive error if a dependency is completely missing", () => {
+    test("throws a descriptive error if a dependency is completely missing", () => {
         const root = createMockProcessor("root", []);
         // Typo! 'rooot' instead of 'root'
         const typoDep = createMockProcessor("bad-node", ["rooot"]);
@@ -66,7 +66,7 @@ describe("sortProcessors", () => {
         );
     });
 
-    it("throws an error if a direct circular dependency is detected", () => {
+    test("throws an error if a direct circular dependency is detected", () => {
         const ping = createMockProcessor("ping", ["pong"]);
         const pong = createMockProcessor("pong", ["ping"]);
 
@@ -75,7 +75,7 @@ describe("sortProcessors", () => {
         );
     });
 
-    it("throws an error if an indirect (deep) circular dependency is detected", () => {
+    test("throws an error if an indirect (deep) circular dependency is detected", () => {
         const a = createMockProcessor("A", ["C"]); // A relies on C
         const b = createMockProcessor("B", ["A"]); // B relies on A
         const c = createMockProcessor("C", ["B"]); // C relies on B (Cycle!)
@@ -85,7 +85,7 @@ describe("sortProcessors", () => {
         );
     });
 
-    it("throws if two processors have the same name", () => {
+    test("throws if two processors have the same name", () => {
         const a = createMockProcessor("dup");
         const b = createMockProcessor("dup");
 

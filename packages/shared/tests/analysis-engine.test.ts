@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from "vitest";
+import { describe, test, expect, vi, beforeEach } from "vitest";
 
 import type { ExecutionContext } from "../src/context/execution-context.js";
 import { AnalysisEngine } from "../src/engine/analysis-engine.js";
@@ -55,7 +55,7 @@ describe("AnalysisEngine", () => {
         engine = new AnalysisEngine([mockReporter]);
     });
 
-    it("runs all phases in order, calls reporters, and returns true on full success", async () => {
+    test("runs all phases in order, calls reporters, and returns true on full success", async () => {
         const graph = createMockProcessor("graph-proc", []);
         const annotate = createMockProcessor("annotate-proc", ["graph-proc"]);
         const diagnostics = createMockProcessor("diag-proc", ["annotate-proc"]);
@@ -78,7 +78,7 @@ describe("AnalysisEngine", () => {
         expect(mockReporter.report).toHaveBeenCalledWith([session]);
     });
 
-    it("aborts subsequent processors if a dependency throws, skips reporters, and returns false", async () => {
+    test("aborts subsequent processors if a dependency throws, skips reporters, and returns false", async () => {
         const graph = createMockProcessor("graph-proc", [], true);
         const annotate = createMockProcessor("annotate-proc", ["graph-proc"]);
 
@@ -105,7 +105,7 @@ describe("AnalysisEngine", () => {
         expect(mockReporter.report).not.toHaveBeenCalled();
     });
 
-    it("isolates crashes between sessions but still fails the overall run", async () => {
+    test("isolates crashes between sessions but still fails the overall run", async () => {
         const badProc = createMockProcessor("bad-proc", [], true);
         const goodProc = createMockProcessor("good-proc", []);
 
@@ -135,7 +135,7 @@ describe("AnalysisEngine", () => {
         );
     });
 
-    it("returns false if linting errors are present, but still runs the reporters", async () => {
+    test("returns false if linting errors are present, but still runs the reporters", async () => {
         const goodProc = createMockProcessor("good-proc", []);
         const session = createSession([goodProc]);
 
@@ -155,7 +155,7 @@ describe("AnalysisEngine", () => {
         expect(mockReporter.report).toHaveBeenCalledWith([session]);
     });
 
-    it("detects circular dependencies and cleanly aborts the session without crashing the engine", async () => {
+    test("detects circular dependencies and cleanly aborts the session without crashing the engine", async () => {
         // A depends on B, B depends on A
         const procA = createMockProcessor("proc-a", ["proc-b"]);
         const procB = createMockProcessor("proc-b", ["proc-a"]);
@@ -180,7 +180,7 @@ describe("AnalysisEngine", () => {
         expect(session.errors).toHaveLength(1);
     });
 
-    it("resolves diamond dependencies correctly (sibling processors)", async () => {
+    test("resolves diamond dependencies correctly (sibling processors)", async () => {
         const graph = createMockProcessor("graph", []);
 
         // Siblings (both depend ONLY on graph)
@@ -204,7 +204,7 @@ describe("AnalysisEngine", () => {
         expect(diagnostics.run).toHaveBeenCalledTimes(1);
     });
 
-    it("handles missing dependencies gracefully (fails the session)", async () => {
+    test("handles missing dependencies gracefully (fails the session)", async () => {
         // Depends on something that isn't registered in the session
         const isolatedProc = createMockProcessor("my-proc", ["does-not-exist"]);
 
