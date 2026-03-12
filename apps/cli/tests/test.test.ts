@@ -1,5 +1,5 @@
 import { describe, test } from "vitest";
 
-describe("shared node tests", () => {
+describe("CLI tests", () => {
     test.todo("should have tests");
 });
