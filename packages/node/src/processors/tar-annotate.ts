@@ -8,7 +8,8 @@ import z from "zod";
 
 import type { NpmRegistryClient } from "@repo/shared/common/npm-registry-client";
 import type { ExecutionContext } from "@repo/shared/context/execution-context";
-import type { Processor } from "@repo/shared/processors/processor";
+import type { PackageNode } from "@repo/shared/graph/package-node";
+import { ParallelProcessor } from "@repo/shared/processors/parallel-processor";
 import type { AnalysisSession } from "@repo/shared/session/analysis-session";
 import { defineAnnotation } from "@repo/shared/session/annotation-key";
 
@@ -27,49 +28,53 @@ const ManifestDistSchema = z.object({
     }),
 });
 
-export class TarAnnotateProcessor implements Processor {
+export class TarAnnotateProcessor extends ParallelProcessor {
     readonly name = "tar-annotate";
     readonly dependsOn = ["npm-graph"];
+
+    protected override concurrencyLimit = 32;
 
     private readonly MAX_FILE_SIZE = 1024 * 1024; // 1MB
     private readonly MAX_FILES = 1000;
     private readonly MAX_TOTAL_SIZE = 10 * 1024 * 1024; // 10MB
 
-    constructor(private readonly registryClient: NpmRegistryClient) {}
+    constructor(private readonly registryClient: NpmRegistryClient) {
+        super();
+    }
 
-    async run(ctx: ExecutionContext, session: AnalysisSession): Promise<void> {
-        const graph = session.graph;
+    protected async processNode(
+        node: PackageNode,
+        ctx: ExecutionContext,
+        session: AnalysisSession,
+    ): Promise<void> {
+        const fetchName = node.alias?.name ?? node.name;
+        const resolvedVersion = node.version;
 
-        for (const node of graph.getNodes()) {
-            const fetchName = node.alias?.name ?? node.name;
-            const resolvedVersion = node.version;
-
-            let manifest;
-            try {
-                manifest = await this.registryClient.fetchManifest(fetchName, resolvedVersion, ctx);
-            } catch (err) {
-                throw new Error(
-                    `Could not resolve ${fetchName}@${resolvedVersion} for node ${node.id}`,
-                    { cause: err },
-                );
-            }
-
-            const parsed = ManifestDistSchema.safeParse(manifest);
-
-            if (!parsed.success) {
-                ctx.logger.warn(`manifest missing dist.tarball ${node.id}`);
-                session.setAnnotation(node.id, TARBALL_FILES.key, null);
-                continue;
-            }
-
-            const tarballUrl = parsed.data.dist.tarball;
-
-            ctx.logger.info(`Downloading tarball: ${node.id}`);
-
-            const files = await this.downloadAndExtract(tarballUrl);
-
-            session.setAnnotation(node.id, TARBALL_FILES.key, files);
+        let manifest;
+        try {
+            manifest = await this.registryClient.fetchManifest(fetchName, resolvedVersion, ctx);
+        } catch (err) {
+            throw new Error(
+                `Could not resolve ${fetchName}@${resolvedVersion} for node ${node.id}`,
+                { cause: err },
+            );
         }
+
+        const parsed = ManifestDistSchema.safeParse(manifest);
+
+        if (!parsed.success) {
+            ctx.logger.warn(`manifest missing dist.tarball ${node.id}`);
+            session.setAnnotation(node.id, TARBALL_FILES.key, null);
+            return;
+        }
+
+        const tarballUrl = parsed.data.dist.tarball;
+
+        ctx.logger.info(`Downloading tarball: ${node.id}`);
+
+        const files = await this.downloadAndExtract(tarballUrl);
+
+        session.setAnnotation(node.id, TARBALL_FILES.key, files);
     }
 
     private async downloadAndExtract(tarballUrl: string): Promise<Map<string, ExtractedFile>> {
