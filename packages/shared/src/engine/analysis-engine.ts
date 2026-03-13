@@ -1,4 +1,5 @@
 import type { ExecutionContext } from "../context/execution-context.js";
+import { ScopedLogger } from "../context/logger.js";
 import type { Processor } from "../processors/processor.js";
 import type { Reporter } from "../reporters/reporter.js";
 import type { AnalysisSession } from "../session/analysis-session.js";
@@ -64,7 +65,10 @@ export class AnalysisEngine {
             );
 
             try {
-                await processor.run(ctx, session);
+                const scopedLogger = new ScopedLogger(ctx.logger, processor.name);
+                const processorCtx: ExecutionContext = { ...ctx, logger: scopedLogger };
+
+                await processor.run(processorCtx, session);
             } catch (err) {
                 const rawMessage = err instanceof Error ? err.message : String(err);
                 const isFatal = true;
