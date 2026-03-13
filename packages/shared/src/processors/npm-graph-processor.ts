@@ -1,3 +1,5 @@
+import pLimit from "p-limit";
+
 import type { NpmRegistryClient } from "../common/npm-registry-client.js";
 import { DependenciesSchema, type Dependencies } from "../common/npm-schema.js";
 import type { ExecutionContext } from "../context/execution-context.js";
@@ -11,6 +13,8 @@ import { type Processor } from "./processor.js";
 export class NpmGraphProcessor implements Processor {
     readonly name = "npm-graph";
     readonly dependsOn = [];
+
+    private readonly limit = pLimit(16);
 
     constructor(private readonly _registryClient: NpmRegistryClient) {}
 
@@ -60,24 +64,49 @@ export class NpmGraphProcessor implements Processor {
             );
         }
 
-        for (const [depName, rawRange] of Object.entries(deps)) {
-            const alias = this.parseAlias(rawRange);
+        const entries = Object.entries(deps);
 
-            const lookupName = alias ? alias.name : depName;
-            const lookupRange = alias ? alias.range : rawRange;
+        const results = await Promise.all(
+            entries.map(async ([depName, rawRange]) => {
+                const alias = this.parseAlias(rawRange);
 
-            // Handle non-registry dependencies
-            if (!this.isRegistryRange(lookupRange)) {
-                const id: PackageId = `${depName}@${lookupRange}`;
+                const lookupName = alias ? alias.name : depName;
+                const lookupRange = alias ? alias.range : rawRange;
+
+                // Handle non-registry dependencies
+                if (!this.isRegistryRange(lookupRange)) {
+                    return {
+                        type: "external" as const,
+                        depName,
+                        lookupRange,
+                    };
+                }
+
+                const manifest = await this.limit(() =>
+                    this._registryClient.fetchManifest(lookupName, lookupRange, ctx),
+                );
+
+                return {
+                    type: "registry" as const,
+                    depName,
+                    manifest,
+                    alias,
+                };
+            }),
+        );
+
+        for (const result of results) {
+            if (result.type === "external") {
+                const id: PackageId = `${result.depName}@${result.lookupRange}`;
 
                 if (!graph.hasNode(id)) {
                     const externalNode: PackageNode = {
                         id,
-                        name: depName,
-                        version: lookupRange,
+                        name: result.depName,
+                        version: result.lookupRange,
                         manifest: new PackageManifest({
-                            name: depName,
-                            version: lookupRange,
+                            name: result.depName,
+                            version: result.lookupRange,
                             dependencies: {},
                         }),
                         source: "external",
@@ -90,7 +119,7 @@ export class NpmGraphProcessor implements Processor {
                 continue;
             }
 
-            const manifest = await this._registryClient.fetchManifest(lookupName, lookupRange, ctx);
+            const { depName, manifest, alias } = result;
 
             const id = this.pkgId(depName, manifest.version);
 
@@ -101,7 +130,6 @@ export class NpmGraphProcessor implements Processor {
                     version: manifest.version,
                     manifest: new PackageManifest(manifest),
                     source: "registry",
-
                     ...(alias && {
                         alias: {
                             name: alias.name,

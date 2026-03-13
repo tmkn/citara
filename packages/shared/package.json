@@ -17,5 +17,7 @@
         "test:coverage": "vitest run --coverage",
         "test:update": "vitest run --update"
     },
-    "devDependencies": {}
+    "dependencies": {
+        "p-limit": "^7.3.0"
+    }
 }
