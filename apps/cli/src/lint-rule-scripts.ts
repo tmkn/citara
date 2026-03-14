@@ -1,4 +1,4 @@
-import { defineRule } from "@repo/shared/lint/define-rule";
+import { defineLintRule } from "@repo/shared/lint/define-rule";
 
 export interface PostinstallParams {
     maxLength: number;
@@ -10,7 +10,7 @@ export interface PostinstallData {
     rawScript?: string;
 }
 
-export const noPostinstallRule = defineRule<PostinstallParams, PostinstallData>({
+export const noPostinstallRule = defineLintRule<PostinstallParams, PostinstallData>({
     id: "no-postinstall-script",
 
     annotate(node) {
