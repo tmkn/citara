@@ -1,13 +1,8 @@
-import { describe, test, expect, vi } from "vitest";
+import { describe, test, expect } from "vitest";
 
 import { CachedNpmRegistryClient } from "../src/common/npm-registry-client.js";
-import type { ExecutionContext } from "../src/context/execution-context.js";
-import type { HttpTransport } from "../src/context/http-transport.js";
-import type { Logger } from "../src/context/logger.js";
 import { NpmGraphProcessor } from "../src/processors/npm-graph-processor.js";
-import { AnalysisSession } from "../src/session/analysis-session.js";
-import type { HttpRequest } from "../src/transport/http-request.js";
-import type { HttpResponse } from "../src/transport/http-response.js";
+import { createContext, createSession } from "./util.js";
 
 const mockManifests: Record<string, any> = {
     root: {
@@ -72,67 +67,12 @@ const mockManifests: Record<string, any> = {
     },
 };
 
-const mockLogger: Logger = {
-    info: vi.fn(),
-    error: vi.fn(),
-    warn: vi.fn(),
-};
-
-function setup(manifests: Record<string, any>): ExecutionContext {
-    const http: HttpTransport = {
-        request: async (req: HttpRequest): Promise<HttpResponse> => {
-            const parts = req.url.split("/");
-
-            let name = parts.pop()!;
-
-            // reconstruct scoped packages
-            if (parts[parts.length - 1]?.startsWith("@")) {
-                name = `${parts.pop()}/${name}`;
-            }
-
-            const metadata = manifests[name];
-
-            if (!metadata) {
-                return { status: 404, body: "{}" };
-            }
-
-            return {
-                status: 200,
-                body: JSON.stringify(metadata),
-            };
-        },
-    };
-
-    return {
-        http,
-        logger: mockLogger,
-    };
-}
-
-function createSession(
-    processor: NpmGraphProcessor,
-    target: string,
-    metaOverrides: Partial<AnalysisSession["meta"]> = {},
-) {
-    return new AnalysisSession({
-        meta: {
-            target,
-            requested: "1.0.0",
-            resolvedVersion: null,
-            configHash: "test",
-            timestamp: Date.now(),
-            ...metaOverrides,
-        },
-        processors: [processor],
-    });
-}
-
 describe("NpmGraphProcessor", () => {
     test("resolves full tree by default", async () => {
         const processor = new NpmGraphProcessor(new CachedNpmRegistryClient());
         const session = createSession(processor, "root");
 
-        const ctx = setup(mockManifests);
+        const ctx = createContext(mockManifests);
         await processor.run(ctx, session);
 
         const graph = session.graph;
@@ -146,7 +86,7 @@ describe("NpmGraphProcessor", () => {
         const processor = new NpmGraphProcessor(new CachedNpmRegistryClient());
         const session = createSession(processor, "root", { depth: 1 });
 
-        const ctx = setup(mockManifests);
+        const ctx = createContext(mockManifests);
         await processor.run(ctx, session);
 
         const graph = session.graph;
@@ -159,7 +99,7 @@ describe("NpmGraphProcessor", () => {
         const processor = new NpmGraphProcessor(new CachedNpmRegistryClient());
         const session = createSession(processor, "root", { depth: 0 });
 
-        const ctx = setup(mockManifests);
+        const ctx = createContext(mockManifests);
         await processor.run(ctx, session);
 
         const graph = session.graph;
@@ -171,7 +111,7 @@ describe("NpmGraphProcessor", () => {
         const processor = new NpmGraphProcessor(new CachedNpmRegistryClient());
         const session = createSession(processor, "root", { dependencyType: "devDependencies" });
 
-        const ctx = setup(mockManifests);
+        const ctx = createContext(mockManifests);
         await processor.run(ctx, session);
 
         const graph = session.graph;
@@ -277,7 +217,7 @@ describe("NpmGraphProcessor (alias handling)", () => {
     test("resolves npm alias dependency", async () => {
         const processor = new NpmGraphProcessor(new CachedNpmRegistryClient());
         const session = createSession(processor, "aliasRoot");
-        const ctx = setup(allAliasManifests);
+        const ctx = createContext(allAliasManifests);
 
         await processor.run(ctx, session);
         const graph = session.graph;
@@ -294,7 +234,7 @@ describe("NpmGraphProcessor (alias handling)", () => {
     test("resolves dependencies of aliased packages", async () => {
         const processor = new NpmGraphProcessor(new CachedNpmRegistryClient());
         const session = createSession(processor, "aliasRoot");
-        const ctx = setup(allAliasManifests);
+        const ctx = createContext(allAliasManifests);
 
         await processor.run(ctx, session);
         const graph = session.graph;
@@ -306,7 +246,7 @@ describe("NpmGraphProcessor (alias handling)", () => {
     test("alias respects depth limits", async () => {
         const processor = new NpmGraphProcessor(new CachedNpmRegistryClient());
         const session = createSession(processor, "aliasRoot", { depth: 1 });
-        const ctx = setup(allAliasManifests);
+        const ctx = createContext(allAliasManifests);
 
         await processor.run(ctx, session);
         const graph = session.graph;
@@ -318,7 +258,7 @@ describe("NpmGraphProcessor (alias handling)", () => {
     test("supports multiple aliases pointing to the same package", async () => {
         const processor = new NpmGraphProcessor(new CachedNpmRegistryClient());
         const session = createSession(processor, "multiAliasRoot");
-        const ctx = setup(allAliasManifests);
+        const ctx = createContext(allAliasManifests);
 
         await processor.run(ctx, session);
         const graph = session.graph;
@@ -330,7 +270,7 @@ describe("NpmGraphProcessor (alias handling)", () => {
     test("resolves scoped npm alias dependency", async () => {
         const processor = new NpmGraphProcessor(new CachedNpmRegistryClient());
         const session = createSession(processor, "scopedRoot");
-        const ctx = setup(allAliasManifests);
+        const ctx = createContext(allAliasManifests);
 
         await processor.run(ctx, session);
         const graph = session.graph;
@@ -345,7 +285,7 @@ describe("NpmGraphProcessor (alias handling)", () => {
     test("resolves versionless unscoped alias to latest", async () => {
         const processor = new NpmGraphProcessor(new CachedNpmRegistryClient());
         const session = createSession(processor, "versionlessRoot");
-        const ctx = setup(allAliasManifests);
+        const ctx = createContext(allAliasManifests);
 
         await processor.run(ctx, session);
         const graph = session.graph;
@@ -358,7 +298,7 @@ describe("NpmGraphProcessor (alias handling)", () => {
     test("resolves versionless scoped alias to latest", async () => {
         const processor = new NpmGraphProcessor(new CachedNpmRegistryClient());
         const session = createSession(processor, "versionlessRoot");
-        const ctx = setup(allAliasManifests);
+        const ctx = createContext(allAliasManifests);
 
         await processor.run(ctx, session);
         const graph = session.graph;

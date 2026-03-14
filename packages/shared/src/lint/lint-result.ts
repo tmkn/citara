@@ -8,4 +8,4 @@ export interface LintMessageContext {
 
 type LintMessage = string | LintMessageContext;
 
-export type LintResult = LintMessage | LintMessage[] | undefined;
+export type LintResult = LintMessage | LintMessage[];

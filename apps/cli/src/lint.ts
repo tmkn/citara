@@ -6,9 +6,9 @@ import { consoleLogger } from "@repo/shared/context/console-logger";
 import type { ExecutionContext } from "@repo/shared/context/execution-context";
 import { AnalysisEngine } from "@repo/shared/engine/analysis-engine";
 import type { PackageNode } from "@repo/shared/graph/package-node";
-import { defineRule } from "@repo/shared/lint/define-rule";
+import { defineLintRule } from "@repo/shared/lint/define-rule";
 import { LintReporter } from "@repo/shared/lint/lint-reporter";
-import type { LintRuleConfig } from "@repo/shared/lint/lint-rule-config";
+import { ruleConfig, type LintRuleConfig } from "@repo/shared/lint/lint-rule-config";
 import { LintSessionFactory } from "@repo/shared/lint/lint-session-factory";
 import { NpmGraphProcessor } from "@repo/shared/processors/npm-graph-processor";
 import { TestAnnotateProcessor } from "@repo/shared/processors/test-annotate";
@@ -44,18 +44,20 @@ program
             logger: new InteractiveLogger(),
         };
 
-        const noDevDepsRule = defineRule<{}>({
+        const noDevDepsRule = defineLintRule({
             id: "no-dev-deps",
 
-            check(node: PackageNode) {
+            check(node: PackageNode, ctx) {
+                const foo = ctx;
                 return "Dev dependencies are not allowed.";
             },
         });
 
-        const maxDepsRule = defineRule<{ max: number }, { count: number }>({
+        const maxDepsRule = defineLintRule<{ max: number }, { count: number }>({
             id: "max-deps",
 
             check(node: PackageNode, ctx) {
+                const foo = ctx.data;
                 return "Max dependencies exceeded.";
             },
 
@@ -64,22 +66,21 @@ program
             },
         });
 
-        const ruleConfigs: LintRuleConfig<any>[] = [
-            {
+        const ruleConfigs: LintRuleConfig[] = [
+            ruleConfig({
                 rule: noDevDepsRule,
                 severity: "warn",
-                params: {},
-            },
-            {
+            }),
+            ruleConfig({
                 rule: maxDepsRule,
                 severity: "error",
                 params: { max: 20 },
-            },
-            {
+            }),
+            ruleConfig({
                 rule: noPostinstallRule,
                 severity: "error",
                 params: { maxLength: 0 },
-            },
+            }),
         ];
 
         const factory = new LintSessionFactory();
