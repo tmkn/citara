@@ -7,6 +7,9 @@ import { ALL_SEVERITIES } from "./lint-rule-config.js";
 
 export class LintReporter implements Reporter {
     async report(sessions: readonly AnalysisSession[]): Promise<void> {
+        const visited = new Set<string>();
+        let duplicates = 0;
+
         let errorCount = 0;
         let warnCount = 0;
 
@@ -40,8 +43,17 @@ export class LintReporter implements Reporter {
                 const ancestors = ctx.path
                     .map((n) => chalk.grey(formatPackageNode(n)))
                     .join(divider);
+
                 const target = chalk.cyan(formatPackageNode(node));
                 const fullPath = ancestors ? `${ancestors}${divider}${target}` : target;
+
+                if (visited.has(node.id)) {
+                    duplicates++;
+
+                    return;
+                }
+
+                visited.add(node.id);
 
                 console.log(fullPath);
 
@@ -62,6 +74,13 @@ export class LintReporter implements Reporter {
 
         const warningText = chalk.yellow(`${warnCount} warning(s)`);
         const errorText = chalk.red(`${errorCount} error(s)`);
+
+        if (duplicates > 0) {
+            const duplicateMessage = chalk.cyan(
+                `Note: ${duplicates} duplicate occurrences across dependency paths were omitted`,
+            );
+            console.log(`\n${duplicateMessage}\n`);
+        }
 
         console.log(`Found ${warningText} and ${errorText}.`);
 
