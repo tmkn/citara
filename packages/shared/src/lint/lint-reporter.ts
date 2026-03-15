@@ -13,6 +13,8 @@ export class LintReporter implements Reporter {
         let errorCount = 0;
         let warnCount = 0;
 
+        const activePackageColor = chalk.cyan;
+
         for (const session of sessions) {
             if (!session.graph) continue;
 
@@ -44,7 +46,7 @@ export class LintReporter implements Reporter {
                     .map((n) => chalk.grey(formatPackageNode(n)))
                     .join(divider);
 
-                const target = chalk.cyan(formatPackageNode(node));
+                const target = activePackageColor(formatPackageNode(node));
                 const fullPath = ancestors ? `${ancestors}${divider}${target}` : target;
 
                 if (visited.has(node.id)) {
@@ -76,8 +78,8 @@ export class LintReporter implements Reporter {
         const errorText = chalk.red(`${errorCount} error(s)`);
 
         if (duplicates > 0) {
-            const duplicateMessage = chalk.cyan(
-                `Note: ${duplicates} duplicate occurrences across dependency paths were omitted`,
+            const duplicateMessage = activePackageColor(
+                `Note: Omitted ${duplicates} duplicate occurrences across different dependency paths`,
             );
             console.log(`\n${duplicateMessage}\n`);
         }
