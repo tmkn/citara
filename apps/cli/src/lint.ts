@@ -10,6 +10,7 @@ import { defineLintRule } from "@repo/shared/lint/define-rule";
 import { LintReporter } from "@repo/shared/lint/lint-reporter";
 import { ruleConfig, type LintRuleConfig } from "@repo/shared/lint/lint-rule-config";
 import { LintSessionFactory } from "@repo/shared/lint/lint-session-factory";
+import { unsafeScripts } from "@repo/shared/lint/rules/unsafe-scripts";
 import { NpmGraphProcessor } from "@repo/shared/processors/npm-graph-processor";
 import { TestAnnotateProcessor } from "@repo/shared/processors/test-annotate";
 import { TreeReporter } from "@repo/shared/reporters/tree-reporter";
@@ -17,7 +18,6 @@ import { AnalysisSession } from "@repo/shared/session/analysis-session";
 import { FetchHttpTransport } from "@repo/shared/transport/fetch-http-transport";
 
 import { InteractiveLogger } from "./interactive-logger.js";
-import { noPostinstallRule } from "./lint-rule-scripts.js";
 
 function shutdown() {
     process.exit(0);
@@ -67,19 +67,19 @@ program
         });
 
         const ruleConfigs: LintRuleConfig[] = [
+            // ruleConfig({
+            //     rule: noDevDepsRule,
+            //     severity: "warn",
+            // }),
+            // ruleConfig({
+            //     rule: maxDepsRule,
+            //     severity: "error",
+            //     params: { max: 20 },
+            // }),
             ruleConfig({
-                rule: noDevDepsRule,
-                severity: "warn",
-            }),
-            ruleConfig({
-                rule: maxDepsRule,
+                rule: unsafeScripts,
                 severity: "error",
-                params: { max: 20 },
-            }),
-            ruleConfig({
-                rule: noPostinstallRule,
-                severity: "error",
-                params: { maxLength: 0 },
+                params: { scripts: ["preinstall", "postinstall"] },
             }),
         ];
 
